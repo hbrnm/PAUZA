@@ -18,7 +18,7 @@ export function TimerDisplay({ secondsLeft, totalDuration }: Props) {
   return (
     <div className="relative w-52 h-52 flex items-center justify-center">
       <svg
-        className="absolute inset-0 -rotate-90"
+        className="absolute inset-0 w-full h-full -rotate-90"
         viewBox="0 0 200 200"
         aria-hidden="true"
       >
@@ -28,7 +28,7 @@ export function TimerDisplay({ secondsLeft, totalDuration }: Props) {
           r={radius}
           fill="none"
           stroke="rgb(30 41 59)"
-          strokeWidth="4"
+          strokeWidth="5"
         />
         <circle
           cx="100"
@@ -36,16 +36,16 @@ export function TimerDisplay({ secondsLeft, totalDuration }: Props) {
           r={radius}
           fill="none"
           stroke="rgb(129 140 248)"
-          strokeWidth="4"
+          strokeWidth="5"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
-          className="transition-[stroke-dashoffset] duration-1000 ease-linear"
+          style={{ transition: 'stroke-dashoffset 1s linear' }}
         />
       </svg>
       <div
         key={secondsLeft}
-        className="timer-tick text-6xl font-light tracking-tighter tabular-nums text-indigo-200"
+        className="timer-tick relative z-10 text-6xl font-light tracking-tighter tabular-nums text-indigo-200"
       >
         {formatTime(secondsLeft)}
       </div>

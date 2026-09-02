@@ -27,7 +27,7 @@ export const HomeView: React.FC<Props> = ({ onTriggerSOS, onOpenJournal }) => {
       <div className="flex flex-col items-center justify-center my-auto py-8 space-y-8 text-center">
         <div className="relative flex items-center justify-center w-72 h-72">
           <div
-            className="absolute inset-0 m-auto w-64 h-64 rounded-full bg-indigo-500/25 btn-halo pointer-events-none"
+            className="absolute left-1/2 top-1/2 w-[17.5rem] h-[17.5rem] rounded-full bg-indigo-500/30 blur-md btn-halo pointer-events-none"
             aria-hidden="true"
           />
           <button
