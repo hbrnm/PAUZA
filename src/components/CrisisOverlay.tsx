@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { usePreventSwipeBack } from '../hooks/usePreventSwipeBack';
+import { hapticTap } from '../hooks/useHaptic';
 import { saveEpisodeValidated } from '../db';
 import {
   DECOMPRESSION_OUTCOMES,
@@ -8,6 +9,8 @@ import {
   TRIGGERS
 } from '../constants';
 import { CravingEpisode, OutcomeType, TriggerType } from '../types';
+import { TimerDisplay } from './TimerDisplay';
+import { StepTransition } from './StepTransition';
 
 interface Props {
   onClose: () => void;
@@ -15,9 +18,13 @@ interface Props {
 
 type Step = 'RUNNING_3_MIN' | 'EARLY_EXIT_TRIGGER' | 'DECOMPRESSION' | 'AFTERCARE';
 
+const INITIAL_DURATION = 180;
+const EXTENSION_SECONDS = 120;
+
 export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   const [step, setStep] = useState<Step>('RUNNING_3_MIN');
-  const [secondsLeft, setSecondsLeft] = useState(180);
+  const [secondsLeft, setSecondsLeft] = useState(INITIAL_DURATION);
+  const [totalDuration, setTotalDuration] = useState(INITIAL_DURATION);
   const [totalSpent, setTotalSpent] = useState(0);
   const [extendedOnce, setExtendedOnce] = useState(false);
   const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | undefined>();
@@ -34,6 +41,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
+          hapticTap('light');
           setStep('DECOMPRESSION');
           return 0;
         }
@@ -45,15 +53,11 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
 
   const handleAddTwoMinutes = () => {
     if (!extendedOnce) {
-      setSecondsLeft((prev) => prev + 120);
+      hapticTap('light');
+      setSecondsLeft((prev) => prev + EXTENSION_SECONDS);
+      setTotalDuration((prev) => prev + EXTENSION_SECONDS);
       setExtendedOnce(true);
     }
-  };
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   const handleEarlyExit = () => {
@@ -61,6 +65,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
       onClose();
       return;
     }
+    hapticTap('light');
     setFinalOutcome('iesire_rapida');
     setStep('EARLY_EXIT_TRIGGER');
   };
@@ -76,34 +81,39 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   };
 
   const finalizeDecompression = async (outcome: OutcomeType) => {
+    hapticTap('medium');
     setFinalOutcome(outcome);
     await saveEpisode(outcome, selectedTrigger ?? 'doar_pofta');
     setStep('AFTERCARE');
   };
 
   const finalizeEarlyExit = async (trigger?: TriggerType) => {
+    hapticTap('light');
     await saveEpisode('iesire_rapida', trigger);
     onClose();
   };
 
+  const handleSelectTrigger = (trigger: TriggerType) => {
+    hapticTap('light');
+    setSelectedTrigger(trigger);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto overlay-enter">
       {step === 'RUNNING_3_MIN' && (
-        <div className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
+        <StepTransition stepKey="running" className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
           <div className="flex justify-between items-center pt-2">
             <span className="text-xs uppercase tracking-widest text-slate-500 font-bold">Protocol Activ</span>
             <button
               onClick={handleEarlyExit}
-              className="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full active:bg-slate-800"
+              className="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full active:bg-slate-800 transition-colors duration-150"
             >
               Ies acum
             </button>
           </div>
 
           <div className="flex flex-col items-center justify-center my-auto text-center space-y-6 py-4">
-            <div className="text-6xl font-light tracking-tighter tabular-nums text-indigo-200">
-              {formatTime(secondsLeft)}
-            </div>
+            <TimerDisplay secondsLeft={secondsLeft} totalDuration={totalDuration} />
 
             <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl max-w-sm">
               <p className="text-sm font-medium text-slate-200 leading-relaxed">
@@ -115,7 +125,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
               {!extendedOnce ? (
                 <button
                   onClick={handleAddTwoMinutes}
-                  className="text-xs text-slate-400 border border-slate-800 bg-slate-900/40 px-3 py-1.5 rounded-lg active:bg-slate-800"
+                  className="text-xs text-slate-400 border border-slate-800 bg-slate-900/40 px-3 py-1.5 rounded-lg active:bg-slate-800 transition-colors duration-150"
                 >
                   +2 minute (mai aștept puțin)
                 </button>
@@ -128,11 +138,11 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
           <div className="text-center text-xs text-slate-500 pb-4">
             Nu iei nicio decizie acum. Doar lași secundele să curgă.
           </div>
-        </div>
+        </StepTransition>
       )}
 
       {step === 'EARLY_EXIT_TRIGGER' && (
-        <div className="my-auto space-y-6 max-w-sm mx-auto w-full text-center py-4">
+        <StepTransition stepKey="early-exit" className="my-auto space-y-6 max-w-sm mx-auto w-full text-center py-4">
           <h2 className="text-lg font-medium text-slate-200">Ce te-a făcut să renunți?</h2>
           <p className="text-xs text-slate-400">Opțional — alege un motiv cu o singură atingere:</p>
           <div className="grid grid-cols-2 gap-2 text-sm">
@@ -140,7 +150,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
               <button
                 key={trigger}
                 onClick={() => finalizeEarlyExit(trigger)}
-                className="p-3 bg-slate-900 border border-slate-800 rounded-xl active:bg-slate-800"
+                className="p-3 bg-slate-900 border border-slate-800 rounded-xl active:bg-slate-800 transition-colors duration-150"
               >
                 {TRIGGER_LABELS[trigger]}
               </button>
@@ -152,11 +162,11 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
           >
             Sari peste și închide
           </button>
-        </div>
+        </StepTransition>
       )}
 
       {step === 'DECOMPRESSION' && (
-        <div className="my-auto space-y-6 max-w-sm mx-auto w-full py-4">
+        <StepTransition stepKey="decompression" className="my-auto space-y-6 max-w-sm mx-auto w-full py-4">
           <div className="text-center space-y-1">
             <h2 className="text-xl font-medium text-slate-100">Valul s-a oprit</h2>
             <p className="text-xs text-slate-400">Ce simțeai că a împins impulsul?</p>
@@ -166,10 +176,10 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
             {TRIGGERS.map((trigger) => (
               <button
                 key={trigger}
-                onClick={() => setSelectedTrigger(trigger)}
-                className={`p-3 rounded-xl border text-left transition-colors ${
+                onClick={() => handleSelectTrigger(trigger)}
+                className={`p-3 rounded-xl border text-left transition-all duration-150 ${
                   selectedTrigger === trigger
-                    ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200'
+                    ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200 scale-[1.02]'
                     : 'bg-slate-900 border-slate-800 text-slate-300'
                 }`}
               >
@@ -184,17 +194,17 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
               <button
                 key={value}
                 onClick={() => finalizeDecompression(value)}
-                className={className}
+                className={`${className} transition-all duration-150`}
               >
                 {label}
               </button>
             ))}
           </div>
-        </div>
+        </StepTransition>
       )}
 
       {step === 'AFTERCARE' && (
-        <div className="my-auto space-y-6 max-w-sm mx-auto text-center py-4">
+        <StepTransition stepKey="aftercare" className="my-auto space-y-6 max-w-sm mx-auto text-center py-4">
           {finalOutcome === 'mancat_totusi' ? (
             <div className="space-y-4">
               <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full flex items-center justify-center mx-auto text-xl">
@@ -219,11 +229,11 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
 
           <button
             onClick={onClose}
-            className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium"
+            className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition-colors duration-150"
           >
             Înapoi la ecranul principal
           </button>
-        </div>
+        </StepTransition>
       )}
     </div>
   );
