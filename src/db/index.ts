@@ -17,12 +17,30 @@ export const db = new AntiPoftaDB();
 // Solicită persistență DUPĂ primul episod salvat cu succes,
 // nu la primul load — crește șansele ca browserul să accepte cererea.
 export async function ensurePersistenceAfterEngagement(): Promise<void> {
-  if (navigator.storage && navigator.storage.persist && navigator.storage.persisted) {
+  if (navigator.storage?.persist && navigator.storage.persisted) {
     const isPersisted = await navigator.storage.persisted();
     if (!isPersisted) {
       await navigator.storage.persist();
     }
   }
+}
+
+// Ignoră deschiderile accidentale sub 5 secunde fără trigger selectat.
+export async function saveEpisodeValidated(
+  episode: Omit<CravingEpisode, 'id'>
+): Promise<boolean> {
+  if (episode.durationSeconds < 5 && episode.trigger === undefined) {
+    return false;
+  }
+
+  const hadEpisodes = (await db.episodes.count()) > 0;
+  await db.episodes.add(episode);
+
+  if (!hadEpisodes) {
+    await ensurePersistenceAfterEngagement();
+  }
+
+  return true;
 }
 
 // Export securizat: încearcă Web Share API (salvează direct în Files pe iOS),
@@ -35,27 +53,35 @@ export async function exportDataSafe(): Promise<void> {
   const triggerBlobDownload = () => {
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
   };
 
-  try {
-    const file = new File([jsonString], fileName, { type: 'application/json' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+  const file = new File([jsonString], fileName, { type: 'application/json' });
+  const canShareFiles =
+    typeof navigator.share === 'function' &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [file] });
+
+  if (canShareFiles) {
+    try {
       await navigator.share({
         title: 'Export Jurnal Anti-Poftă',
         files: [file]
       });
       return;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
+      console.warn('Share API nu a răspuns, fallback la Blob:', err);
     }
-  } catch (err) {
-    // Prinde atât NotAllowedError (user activation expirat), cât și anularea manuală
-    console.warn('Share API nu a răspuns, fallback la Blob:', err);
   }
 
   triggerBlobDownload();
