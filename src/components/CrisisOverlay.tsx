@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { usePreventSwipeBack } from '../hooks/usePreventSwipeBack';
+import { useWallClockTimer } from '../hooks/useWallClockTimer';
 import { hapticTap } from '../hooks/useHaptic';
 import { saveEpisodeValidated } from '../db';
 import {
@@ -23,45 +24,36 @@ const EXTENSION_SECONDS = 120;
 
 export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   const [step, setStep] = useState<Step>('RUNNING_3_MIN');
-  const [secondsLeft, setSecondsLeft] = useState(INITIAL_DURATION);
-  const [totalDuration, setTotalDuration] = useState(INITIAL_DURATION);
-  const [totalSpent, setTotalSpent] = useState(0);
   const [extendedOnce, setExtendedOnce] = useState(false);
   const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | undefined>();
   const [finalOutcome, setFinalOutcome] = useState<OutcomeType>('iesire_rapida');
 
   const isRunning3Min = step === 'RUNNING_3_MIN';
+
+  const handleTimerComplete = useCallback(() => {
+    hapticTap('light');
+    setStep('DECOMPRESSION');
+  }, []);
+
+  const { secondsLeft, totalDuration, elapsedSeconds, extend } = useWallClockTimer({
+    isActive: isRunning3Min,
+    initialDurationSeconds: INITIAL_DURATION,
+    onComplete: handleTimerComplete
+  });
+
   useWakeLock(isRunning3Min);
   usePreventSwipeBack(isRunning3Min);
-
-  useEffect(() => {
-    if (step !== 'RUNNING_3_MIN') return;
-    const interval = setInterval(() => {
-      setTotalSpent((prev) => prev + 1);
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          hapticTap('light');
-          setStep('DECOMPRESSION');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [step]);
 
   const handleAddTwoMinutes = () => {
     if (!extendedOnce) {
       hapticTap('light');
-      setSecondsLeft((prev) => prev + EXTENSION_SECONDS);
-      setTotalDuration((prev) => prev + EXTENSION_SECONDS);
+      extend(EXTENSION_SECONDS);
       setExtendedOnce(true);
     }
   };
 
   const handleEarlyExit = () => {
-    if (totalSpent < 5) {
+    if (elapsedSeconds < 5) {
       onClose();
       return;
     }
@@ -73,7 +65,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   const saveEpisode = async (outcome: OutcomeType, trigger?: TriggerType) => {
     const episode: CravingEpisode = {
       timestamp: new Date().toISOString(),
-      durationSeconds: totalSpent,
+      durationSeconds: elapsedSeconds,
       trigger,
       outcome
     };
@@ -99,9 +91,9 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto overlay-enter">
+    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto motion-safe:animate-overlay-enter">
       {step === 'RUNNING_3_MIN' && (
-        <StepTransition stepKey="running" className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
+        <StepTransition key="running" className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
           <div className="flex justify-between items-center pt-2">
             <span className="text-xs uppercase tracking-widest text-slate-500 font-bold">Protocol Activ</span>
             <button
@@ -142,7 +134,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
       )}
 
       {step === 'EARLY_EXIT_TRIGGER' && (
-        <StepTransition stepKey="early-exit" className="my-auto space-y-6 max-w-sm mx-auto w-full text-center py-4">
+        <StepTransition key="early-exit" className="my-auto space-y-6 max-w-sm mx-auto w-full text-center py-4">
           <h2 className="text-lg font-medium text-slate-200">Ce te-a făcut să renunți?</h2>
           <p className="text-xs text-slate-400">Opțional — alege un motiv cu o singură atingere:</p>
           <div className="grid grid-cols-2 gap-2 text-sm">
@@ -166,7 +158,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
       )}
 
       {step === 'DECOMPRESSION' && (
-        <StepTransition stepKey="decompression" className="my-auto space-y-6 max-w-sm mx-auto w-full py-4">
+        <StepTransition key="decompression" className="my-auto space-y-6 max-w-sm mx-auto w-full py-4">
           <div className="text-center space-y-1">
             <h2 className="text-xl font-medium text-slate-100">Valul s-a oprit</h2>
             <p className="text-xs text-slate-400">Ce simțeai că a împins impulsul?</p>
@@ -204,7 +196,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
       )}
 
       {step === 'AFTERCARE' && (
-        <StepTransition stepKey="aftercare" className="my-auto space-y-6 max-w-sm mx-auto text-center py-4">
+        <StepTransition key="aftercare" className="my-auto space-y-6 max-w-sm mx-auto text-center py-4">
           {finalOutcome === 'mancat_totusi' ? (
             <div className="space-y-4">
               <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full flex items-center justify-center mx-auto text-xl">

@@ -1,14 +1,13 @@
 import { ReactNode } from 'react';
 
 interface Props {
-  stepKey: string;
   className?: string;
   children: ReactNode;
 }
 
-export function StepTransition({ stepKey, className = '', children }: Props) {
+export function StepTransition({ className = '', children }: Props) {
   return (
-    <div key={stepKey} className={`step-enter ${className}`.trim()}>
+    <div className={`motion-safe:animate-step-enter ${className}`.trim()}>
       {children}
     </div>
   );
