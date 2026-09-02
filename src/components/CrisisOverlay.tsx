@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { usePreventSwipeBack } from '../hooks/usePreventSwipeBack';
+import { useWallClockTimer } from '../hooks/useWallClockTimer';
 import { hapticTap } from '../hooks/useHaptic';
 import { saveEpisodeValidated } from '../db';
 import {
@@ -23,45 +24,36 @@ const EXTENSION_SECONDS = 120;
 
 export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   const [step, setStep] = useState<Step>('RUNNING_3_MIN');
-  const [secondsLeft, setSecondsLeft] = useState(INITIAL_DURATION);
-  const [totalDuration, setTotalDuration] = useState(INITIAL_DURATION);
-  const [totalSpent, setTotalSpent] = useState(0);
   const [extendedOnce, setExtendedOnce] = useState(false);
   const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | undefined>();
   const [finalOutcome, setFinalOutcome] = useState<OutcomeType>('iesire_rapida');
 
   const isRunning3Min = step === 'RUNNING_3_MIN';
+
+  const handleTimerComplete = useCallback(() => {
+    hapticTap('light');
+    setStep('DECOMPRESSION');
+  }, []);
+
+  const { secondsLeft, totalDuration, elapsedSeconds, extend } = useWallClockTimer({
+    isActive: isRunning3Min,
+    initialDurationSeconds: INITIAL_DURATION,
+    onComplete: handleTimerComplete
+  });
+
   useWakeLock(isRunning3Min);
   usePreventSwipeBack(isRunning3Min);
-
-  useEffect(() => {
-    if (step !== 'RUNNING_3_MIN') return;
-    const interval = setInterval(() => {
-      setTotalSpent((prev) => prev + 1);
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          hapticTap('light');
-          setStep('DECOMPRESSION');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [step]);
 
   const handleAddTwoMinutes = () => {
     if (!extendedOnce) {
       hapticTap('light');
-      setSecondsLeft((prev) => prev + EXTENSION_SECONDS);
-      setTotalDuration((prev) => prev + EXTENSION_SECONDS);
+      extend(EXTENSION_SECONDS);
       setExtendedOnce(true);
     }
   };
 
   const handleEarlyExit = () => {
-    if (totalSpent < 5) {
+    if (elapsedSeconds < 5) {
       onClose();
       return;
     }
@@ -73,7 +65,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   const saveEpisode = async (outcome: OutcomeType, trigger?: TriggerType) => {
     const episode: CravingEpisode = {
       timestamp: new Date().toISOString(),
-      durationSeconds: totalSpent,
+      durationSeconds: elapsedSeconds,
       trigger,
       outcome
     };
