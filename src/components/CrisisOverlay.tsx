@@ -91,7 +91,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto motion-safe:animate-overlay-enter">
+    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto animate-overlay-enter">
       {step === 'RUNNING_3_MIN' && (
         <StepTransition key="running" className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
           <div className="flex justify-between items-center pt-2">

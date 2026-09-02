@@ -45,7 +45,7 @@ export function TimerDisplay({ secondsLeft, totalDuration }: Props) {
       </svg>
       <div
         key={secondsLeft}
-        className="motion-safe:animate-timer-tick relative z-10 text-6xl font-light tracking-tighter tabular-nums text-indigo-200"
+        className="animate-timer-tick relative z-10 text-6xl font-light tracking-tighter tabular-nums text-indigo-200"
       >
         {formatTime(secondsLeft)}
       </div>
