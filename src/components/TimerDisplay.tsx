@@ -16,9 +16,9 @@ export function TimerDisplay({ secondsLeft, totalDuration }: Props) {
   const strokeDashoffset = circumference * (1 - Math.min(1, Math.max(0, progress)));
 
   return (
-    <div className="relative w-52 h-52 flex items-center justify-center">
+    <div className="relative w-56 h-56 flex items-center justify-center">
       <svg
-        className="absolute inset-0 -rotate-90"
+        className="absolute inset-0 w-full h-full -rotate-90"
         viewBox="0 0 200 200"
         aria-hidden="true"
       >
@@ -27,25 +27,25 @@ export function TimerDisplay({ secondsLeft, totalDuration }: Props) {
           cy="100"
           r={radius}
           fill="none"
-          stroke="rgb(30 41 59)"
-          strokeWidth="4"
+          stroke="rgb(51 65 85)"
+          strokeWidth="6"
         />
         <circle
           cx="100"
           cy="100"
           r={radius}
           fill="none"
-          stroke="rgb(129 140 248)"
-          strokeWidth="4"
+          stroke="rgb(99 102 241)"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
-          className="transition-[stroke-dashoffset] duration-1000 ease-linear"
+          style={{ transition: 'stroke-dashoffset 1s linear' }}
         />
       </svg>
       <div
         key={secondsLeft}
-        className="timer-tick text-6xl font-light tracking-tighter tabular-nums text-indigo-200"
+        className="motion-safe:animate-timer-tick relative z-10 text-6xl font-light tracking-tighter tabular-nums text-indigo-200"
       >
         {formatTime(secondsLeft)}
       </div>

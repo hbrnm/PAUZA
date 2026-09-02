@@ -25,14 +25,20 @@ export const HomeView: React.FC<Props> = ({ onTriggerSOS, onOpenJournal }) => {
       </div>
 
       <div className="flex flex-col items-center justify-center my-auto py-8 space-y-8 text-center">
-        <div className="relative flex items-center justify-center w-72 h-72">
-          <div
-            className="absolute inset-0 m-auto w-64 h-64 rounded-full bg-indigo-500/25 btn-halo pointer-events-none"
+        <div className="relative w-64 h-64 flex items-center justify-center">
+          {/* Inel exterior — animate-ping nativ Tailwind, imposibil de ratat */}
+          <span
+            className="absolute inset-0 rounded-full bg-indigo-500/50 motion-safe:animate-ping pointer-events-none"
+            aria-hidden="true"
+          />
+          {/* Halo respirație — custom @theme, vizibil static fără animație */}
+          <span
+            className="absolute inset-0 rounded-full bg-indigo-400/35 blur-md motion-safe:animate-breathe-glow pointer-events-none"
             aria-hidden="true"
           />
           <button
             onClick={handleTriggerSOS}
-            className="relative z-10 w-64 h-64 rounded-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-500 shadow-[0_0_60px_rgba(79,70,229,0.3)] active:shadow-[0_0_40px_rgba(79,70,229,0.2)] flex flex-col items-center justify-center transition-all duration-150 ease-out active:scale-95 p-4 touch-manipulation cursor-pointer border-4 border-indigo-500/30 shrink-0"
+            className="relative z-10 w-64 h-64 rounded-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-500 shadow-[0_0_60px_rgba(79,70,229,0.45)] active:shadow-[0_0_40px_rgba(79,70,229,0.25)] flex flex-col items-center justify-center transition-all duration-150 ease-out active:scale-95 p-4 touch-manipulation cursor-pointer border-4 border-indigo-400/40 shrink-0"
           >
             <span className="text-2xl font-black tracking-tight text-white uppercase">AM POFTĂ ACUM</span>
             <span className="text-xs text-indigo-200 mt-2 font-medium">3 minute pauză</span>
