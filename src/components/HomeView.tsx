@@ -25,20 +25,18 @@ export const HomeView: React.FC<Props> = ({ onTriggerSOS, onOpenJournal }) => {
       </div>
 
       <div className="flex flex-col items-center justify-center my-auto py-8 space-y-8 text-center">
-        <div className="relative w-64 h-64 flex items-center justify-center">
-          {/* Inel exterior — animate-ping nativ Tailwind, imposibil de ratat */}
+        <div className="relative w-[17rem] h-[17rem] flex items-center justify-center">
           <span
-            className="absolute inset-0 rounded-full bg-indigo-500/50 motion-safe:animate-ping pointer-events-none"
+            className="absolute left-1/2 top-1/2 w-[16.5rem] h-[16.5rem] rounded-full border-2 border-indigo-400/50 pauza-pulse-ring-outer pointer-events-none"
             aria-hidden="true"
           />
-          {/* Halo respirație — custom @theme, vizibil static fără animație */}
           <span
-            className="absolute inset-0 rounded-full bg-indigo-400/35 blur-md motion-safe:animate-breathe-glow pointer-events-none"
+            className="absolute left-1/2 top-1/2 w-[15rem] h-[15rem] rounded-full bg-indigo-500/40 blur-sm pauza-pulse-ring pointer-events-none"
             aria-hidden="true"
           />
           <button
             onClick={handleTriggerSOS}
-            className="relative z-10 w-64 h-64 rounded-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-500 shadow-[0_0_60px_rgba(79,70,229,0.45)] active:shadow-[0_0_40px_rgba(79,70,229,0.25)] flex flex-col items-center justify-center transition-all duration-150 ease-out active:scale-95 p-4 touch-manipulation cursor-pointer border-4 border-indigo-400/40 shrink-0"
+            className="relative z-10 w-64 h-64 rounded-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-500 pauza-pulse-btn flex flex-col items-center justify-center transition-transform duration-150 ease-out active:scale-95 p-4 touch-manipulation cursor-pointer border-4 border-indigo-400/50 shrink-0"
           >
             <span className="text-2xl font-black tracking-tight text-white uppercase">AM POFTĂ ACUM</span>
             <span className="text-xs text-indigo-200 mt-2 font-medium">3 minute pauză</span>
