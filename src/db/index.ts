@@ -48,7 +48,7 @@ export async function saveEpisodeValidated(
 export async function exportDataSafe(): Promise<void> {
   const episodes = await db.episodes.toArray();
   const jsonString = JSON.stringify(episodes, null, 2);
-  const fileName = `antipofta-export-${new Date().toISOString().slice(0, 10)}.json`;
+  const fileName = `pauza-export-${new Date().toISOString().slice(0, 10)}.json`;
 
   const triggerBlobDownload = () => {
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -72,7 +72,7 @@ export async function exportDataSafe(): Promise<void> {
   if (canShareFiles) {
     try {
       await navigator.share({
-        title: 'Export Jurnal Anti-Poftă',
+        title: 'Export Jurnal PAUZĂ',
         files: [file]
       });
       return;

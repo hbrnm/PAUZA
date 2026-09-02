@@ -1,23 +1,32 @@
 export type TriggerType =
   | 'oboseala'
   | 'stres'
-  | 'nervi'
   | 'plictiseala'
+  | 'obicei'
   | 'foame_reala'
-  | 'alta';
+  | 'doar_pofta';
+
+/** @deprecated Valori vechi păstrate pentru compatibilitate la citire din IndexedDB */
+export type LegacyTriggerType = 'nervi' | 'alta';
 
 export type OutcomeType =
-  | 'a_trecut'
-  | 'am_amanat'
-  | 'am_mancat_totusi'
+  | 'depasit'
+  | 'amanat'
+  | 'mancat_totusi'
   | 'iesire_rapida';
 
+/** @deprecated Valori vechi păstrate pentru compatibilitate la citire din IndexedDB */
+export type LegacyOutcomeType = 'a_trecut' | 'am_amanat' | 'am_mancat_totusi';
+
+export type StoredOutcomeType = OutcomeType | LegacyOutcomeType;
+export type StoredTriggerType = TriggerType | LegacyTriggerType;
+
 export interface CravingEpisode {
-  id?: number; // Auto-increment Dexie
-  timestamp: string; // ISO string
-  durationSeconds: number; // Cât timp a stat efectiv în protocol
-  trigger?: TriggerType;
-  actionTaken: boolean; // A bifat acțiunea fizică (apă rece pe față/mâini)?
-  outcome: OutcomeType;
+  id?: number;
+  timestamp: string;
+  durationSeconds: number;
+  trigger?: StoredTriggerType;
+  actionTaken?: boolean;
+  outcome: StoredOutcomeType;
   note?: string;
 }
