@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { HomeView } from './components/HomeView';
 import { CrisisOverlay } from './components/CrisisOverlay';
 import { JournalView } from './components/JournalView';

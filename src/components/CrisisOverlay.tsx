@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { db, ensurePersistenceAfterEngagement } from '../db';
+import { usePreventSwipeBack } from '../hooks/usePreventSwipeBack';
+import { saveEpisodeValidated } from '../db';
 import { CravingEpisode, TriggerType, OutcomeType } from '../types';
 
 interface Props {
@@ -11,14 +12,16 @@ type Step = 'RUNNING' | 'EARLY_EXIT_TRIGGER' | 'DECOMPRESSION' | 'AFTERCARE';
 
 export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   const [step, setStep] = useState<Step>('RUNNING');
-  const [secondsLeft, setSecondsLeft] = useState(180); // 3 minute start
+  const [secondsLeft, setSecondsLeft] = useState(180);
   const [totalSpent, setTotalSpent] = useState(0);
   const [extendedOnce, setExtendedOnce] = useState(false);
   const [actionDone, setActionDone] = useState(false);
   const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | undefined>();
   const [finalOutcome, setFinalOutcome] = useState<OutcomeType>('iesire_rapida');
 
-  useWakeLock(step === 'RUNNING');
+  const isRunning3Min = step === 'RUNNING';
+  useWakeLock(isRunning3Min);
+  usePreventSwipeBack(isRunning3Min);
 
   useEffect(() => {
     if (step !== 'RUNNING') return;
@@ -58,30 +61,28 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
     const episode: CravingEpisode = {
       timestamp: new Date().toISOString(),
       durationSeconds: totalSpent,
-      trigger: trigger || 'alta',
+      trigger,
       actionTaken: actionDone,
       outcome
     };
-    await db.episodes.add(episode);
-    await ensurePersistenceAfterEngagement();
+    return saveEpisodeValidated(episode);
   };
 
   const finalizeDecompression = async (outcome: OutcomeType) => {
     setFinalOutcome(outcome);
-    await saveEpisode(outcome, selectedTrigger || 'alta');
+    await saveEpisode(outcome, selectedTrigger ?? 'alta');
     setStep('AFTERCARE');
   };
 
   const finalizeEarlyExit = async (trigger?: TriggerType) => {
-    await saveEpisode('iesire_rapida', trigger || 'alta');
+    await saveEpisode('iesire_rapida', trigger);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 select-none overflow-y-auto">
-      {/* 1. RUNNING */}
+    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto">
       {step === 'RUNNING' && (
-        <div className="flex flex-col justify-between h-full touch-none">
+        <div className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
           <div className="flex justify-between items-center pt-2">
             <span className="text-xs uppercase tracking-widest text-slate-500 font-bold">Protocol Activ</span>
             <button
@@ -92,7 +93,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
             </button>
           </div>
 
-          <div className="flex flex-col items-center justify-center my-auto text-center space-y-6">
+          <div className="flex flex-col items-center justify-center my-auto text-center space-y-6 py-4">
             <div className="text-6xl font-light tracking-tighter tabular-nums text-indigo-200">
               {formatTime(secondsLeft)}
             </div>
@@ -133,7 +134,6 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
         </div>
       )}
 
-      {/* 2. EARLY_EXIT_TRIGGER */}
       {step === 'EARLY_EXIT_TRIGGER' && (
         <div className="my-auto space-y-6 max-w-sm mx-auto w-full text-center py-4">
           <h2 className="text-lg font-medium text-slate-200">Ce a declanșat renunțarea?</h2>
@@ -150,7 +150,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
             ))}
           </div>
           <button
-            onClick={() => finalizeEarlyExit('alta')}
+            onClick={() => finalizeEarlyExit()}
             className="w-full py-3 text-xs text-slate-400 underline"
           >
             Sari peste și închide
@@ -158,7 +158,6 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
         </div>
       )}
 
-      {/* 3. DECOMPRESSION */}
       {step === 'DECOMPRESSION' && (
         <div className="my-auto space-y-6 max-w-sm mx-auto w-full py-4">
           <div className="text-center space-y-1">
@@ -206,7 +205,6 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
         </div>
       )}
 
-      {/* 4. AFTERCARE */}
       {step === 'AFTERCARE' && (
         <div className="my-auto space-y-6 max-w-sm mx-auto text-center py-4">
           {finalOutcome === 'am_mancat_totusi' ? (
