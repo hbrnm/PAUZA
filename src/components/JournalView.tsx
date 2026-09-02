@@ -8,6 +8,7 @@ import {
   isSuccessfulPause
 } from '../constants';
 import { CravingEpisode } from '../types';
+import { JournalSkeleton } from './JournalSkeleton';
 
 interface Props {
   onClose: () => void;
@@ -43,7 +44,7 @@ export const JournalView: React.FC<Props> = ({ onClose }) => {
     .slice(0, 3);
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-950 text-white flex flex-col p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] overflow-y-auto">
+    <div className="fixed inset-0 z-40 bg-slate-950 text-white flex flex-col p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] overflow-y-auto overlay-enter">
       <div className="flex justify-between items-center pb-6 border-b border-slate-900">
         <div>
           <h2 className="text-lg font-medium text-slate-100">Jurnal & Conștientizare</h2>
@@ -51,23 +52,23 @@ export const JournalView: React.FC<Props> = ({ onClose }) => {
         </div>
         <button
           onClick={onClose}
-          className="text-xs text-slate-300 bg-slate-900 border border-slate-800 px-3.5 py-1.5 rounded-full active:bg-slate-800"
+          className="text-xs text-slate-300 bg-slate-900 border border-slate-800 px-3.5 py-1.5 rounded-full active:bg-slate-800 transition-colors duration-150"
         >
           Închide
         </button>
       </div>
 
       {loading ? (
-        <div className="my-auto text-center text-xs text-slate-500">Se încarcă datele...</div>
+        <JournalSkeleton />
       ) : total === 0 ? (
-        <div className="my-auto text-center space-y-2 py-12">
+        <div className="my-auto text-center space-y-2 py-12 step-enter">
           <p className="text-sm text-slate-300">Încă nu ai înregistrat niciun episod.</p>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
             La următorul impuls, apasă butonul indigo de pe ecranul principal.
           </p>
         </div>
       ) : (
-        <div className="space-y-6 pt-6">
+        <div className="space-y-6 pt-6 step-enter">
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl">
               <div className="text-xl font-semibold text-indigo-300">{successful}</div>
@@ -138,7 +139,7 @@ export const JournalView: React.FC<Props> = ({ onClose }) => {
           <div className="pt-4 pb-8">
             <button
               onClick={exportDataSafe}
-              className="w-full py-3 bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium rounded-xl active:bg-slate-800 flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full py-3 bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium rounded-xl active:bg-slate-800 flex items-center justify-center space-x-2 cursor-pointer transition-colors duration-150"
             >
               <span>Exportă datele (JSON / Salvează în Fișiere)</span>
             </button>
