@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+/* Previne zoom-ul pe tap dublu și scroll bounce nedorit pe iOS */
+html, body {
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+  background-color: #020617;
+}
+
+/* Utilitare opționale pentru safe area */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 1rem);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 1.5rem);
+}
