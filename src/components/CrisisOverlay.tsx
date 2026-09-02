@@ -2,29 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { usePreventSwipeBack } from '../hooks/usePreventSwipeBack';
 import { saveEpisodeValidated } from '../db';
-import { CravingEpisode, TriggerType, OutcomeType } from '../types';
+import {
+  DECOMPRESSION_OUTCOMES,
+  TRIGGER_LABELS,
+  TRIGGERS
+} from '../constants';
+import { CravingEpisode, OutcomeType, TriggerType } from '../types';
 
 interface Props {
   onClose: () => void;
 }
 
-type Step = 'RUNNING' | 'EARLY_EXIT_TRIGGER' | 'DECOMPRESSION' | 'AFTERCARE';
+type Step = 'RUNNING_3_MIN' | 'EARLY_EXIT_TRIGGER' | 'DECOMPRESSION' | 'AFTERCARE';
 
 export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
-  const [step, setStep] = useState<Step>('RUNNING');
+  const [step, setStep] = useState<Step>('RUNNING_3_MIN');
   const [secondsLeft, setSecondsLeft] = useState(180);
   const [totalSpent, setTotalSpent] = useState(0);
   const [extendedOnce, setExtendedOnce] = useState(false);
-  const [actionDone, setActionDone] = useState(false);
   const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | undefined>();
   const [finalOutcome, setFinalOutcome] = useState<OutcomeType>('iesire_rapida');
 
-  const isRunning3Min = step === 'RUNNING';
+  const isRunning3Min = step === 'RUNNING_3_MIN';
   useWakeLock(isRunning3Min);
   usePreventSwipeBack(isRunning3Min);
 
   useEffect(() => {
-    if (step !== 'RUNNING') return;
+    if (step !== 'RUNNING_3_MIN') return;
     const interval = setInterval(() => {
       setTotalSpent((prev) => prev + 1);
       setSecondsLeft((prev) => {
@@ -53,6 +57,10 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   };
 
   const handleEarlyExit = () => {
+    if (totalSpent < 5) {
+      onClose();
+      return;
+    }
     setFinalOutcome('iesire_rapida');
     setStep('EARLY_EXIT_TRIGGER');
   };
@@ -62,7 +70,6 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
       timestamp: new Date().toISOString(),
       durationSeconds: totalSpent,
       trigger,
-      actionTaken: actionDone,
       outcome
     };
     return saveEpisodeValidated(episode);
@@ -70,7 +77,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
 
   const finalizeDecompression = async (outcome: OutcomeType) => {
     setFinalOutcome(outcome);
-    await saveEpisode(outcome, selectedTrigger ?? 'alta');
+    await saveEpisode(outcome, selectedTrigger ?? 'doar_pofta');
     setStep('AFTERCARE');
   };
 
@@ -81,7 +88,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto">
-      {step === 'RUNNING' && (
+      {step === 'RUNNING_3_MIN' && (
         <div className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
           <div className="flex justify-between items-center pt-2">
             <span className="text-xs uppercase tracking-widest text-slate-500 font-bold">Protocol Activ</span>
@@ -100,27 +107,17 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
 
             <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl max-w-sm">
               <p className="text-sm font-medium text-slate-200 leading-relaxed">
-                Mergi la baie și dă-ți cu <strong>apă foarte rece</strong> pe față și pe ceafă.
+                Pune telefonul jos. Bea un pahar cu apă rece sau spală-te pe față și ieși din bucătărie.
               </p>
             </div>
 
             <div className="flex flex-col items-center space-y-3">
-              <label className="flex items-center space-x-3 bg-slate-900/60 border border-slate-800 px-4 py-3 rounded-xl cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={actionDone}
-                  onChange={(e) => setActionDone(e.target.checked)}
-                  className="w-5 h-5 rounded border-slate-700 text-indigo-600 focus:ring-0 bg-slate-950"
-                />
-                <span className="text-xs text-slate-300">Am făcut acțiunea cu apă rece</span>
-              </label>
-
               {!extendedOnce ? (
                 <button
                   onClick={handleAddTwoMinutes}
                   className="text-xs text-slate-400 border border-slate-800 bg-slate-900/40 px-3 py-1.5 rounded-lg active:bg-slate-800"
                 >
-                  +2 minute (mai stau puțin)
+                  +2 minute (mai aștept puțin)
                 </button>
               ) : (
                 <span className="text-[11px] text-slate-600">Timp extins cu succes (+2m)</span>
@@ -136,16 +133,16 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
 
       {step === 'EARLY_EXIT_TRIGGER' && (
         <div className="my-auto space-y-6 max-w-sm mx-auto w-full text-center py-4">
-          <h2 className="text-lg font-medium text-slate-200">Ce a declanșat renunțarea?</h2>
-          <p className="text-xs text-slate-400">Selectează un motiv sau sari direct:</p>
+          <h2 className="text-lg font-medium text-slate-200">Ce te-a făcut să renunți?</h2>
+          <p className="text-xs text-slate-400">Opțional — alege un motiv cu o singură atingere:</p>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {(['oboseala', 'stres', 'nervi', 'foame_reala', 'plictiseala', 'alta'] as TriggerType[]).map((t) => (
+            {TRIGGERS.map((trigger) => (
               <button
-                key={t}
-                onClick={() => finalizeEarlyExit(t)}
-                className="p-3 bg-slate-900 border border-slate-800 rounded-xl active:bg-slate-800 capitalize"
+                key={trigger}
+                onClick={() => finalizeEarlyExit(trigger)}
+                className="p-3 bg-slate-900 border border-slate-800 rounded-xl active:bg-slate-800"
               >
-                {t === 'alta' ? 'Alt motiv' : t.replace('_', ' ')}
+                {TRIGGER_LABELS[trigger]}
               </button>
             ))}
           </div>
@@ -166,65 +163,56 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {(['oboseala', 'stres', 'nervi', 'foame_reala', 'plictiseala', 'alta'] as TriggerType[]).map((t) => (
+            {TRIGGERS.map((trigger) => (
               <button
-                key={t}
-                onClick={() => setSelectedTrigger(t)}
-                className={`p-3 rounded-xl border text-left capitalize transition-colors ${
-                  selectedTrigger === t
+                key={trigger}
+                onClick={() => setSelectedTrigger(trigger)}
+                className={`p-3 rounded-xl border text-left transition-colors ${
+                  selectedTrigger === trigger
                     ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200'
                     : 'bg-slate-900 border-slate-800 text-slate-300'
                 }`}
               >
-                {t === 'alta' ? 'Doar poftă / Altul' : t.replace('_', ' ')}
+                {TRIGGER_LABELS[trigger]}
               </button>
             ))}
           </div>
 
           <div className="pt-4 space-y-2">
             <p className="text-xs text-center text-slate-400 mb-2">Care este decizia ta acum?</p>
-            <button
-              onClick={() => finalizeDecompression('a_trecut')}
-              className="w-full py-3.5 bg-emerald-600 font-medium rounded-xl text-sm active:bg-emerald-500"
-            >
-              A trecut pofta
-            </button>
-            <button
-              onClick={() => finalizeDecompression('am_amanat')}
-              className="w-full py-3.5 bg-slate-800 font-medium rounded-xl text-sm active:bg-slate-700"
-            >
-              Mai amân decizia
-            </button>
-            <button
-              onClick={() => finalizeDecompression('am_mancat_totusi')}
-              className="w-full py-3.5 bg-slate-900 border border-slate-800 font-medium text-slate-400 rounded-xl text-sm active:bg-slate-800"
-            >
-              Am mâncat totuși
-            </button>
+            {DECOMPRESSION_OUTCOMES.map(({ value, label, className }) => (
+              <button
+                key={value}
+                onClick={() => finalizeDecompression(value)}
+                className={className}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
       {step === 'AFTERCARE' && (
         <div className="my-auto space-y-6 max-w-sm mx-auto text-center py-4">
-          {finalOutcome === 'am_mancat_totusi' ? (
+          {finalOutcome === 'mancat_totusi' ? (
             <div className="space-y-4">
-              <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto text-xl">
-                🛡️
+              <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full flex items-center justify-center mx-auto text-xl">
+                ○
               </div>
-              <h3 className="text-lg font-medium text-slate-100">Oprirea la jumătate este o victorie</h3>
+              <h3 className="text-lg font-medium text-slate-100">Ai mâncat. Este în regulă.</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Faptul că ai mâncat ceva dulce nu anulează nimic. Nu încerca să compensezi. Lasă restul deoparte, bea un pahar cu apă și schimbă camera.
+                Un episod izolat nu anulează nimic. Nu încerca să compensezi. Lasă restul deoparte, bea un pahar cu apă și schimbă camera.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-xl">
+              <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full flex items-center justify-center mx-auto text-xl">
                 ✓
               </div>
-              <h3 className="text-lg font-medium text-slate-100">Ai rupt pilotul automat</h3>
+              <h3 className="text-lg font-medium text-slate-100">Ai creat spațiu</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Fiecare amânare resetează circuitele de dopamină. Ai creat spațiu între impuls și acțiune.
+                Fiecare pauză contează. Ai lăsat timpul să lucreze între impuls și reacție — asta este victoria de azi.
               </p>
             </div>
           )}

@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/components/CrisisOverlay.tsx","./src/components/HomeView.tsx","./src/components/JournalView.tsx","./src/db/index.ts","./src/hooks/usePreventSwipeBack.ts","./src/hooks/useWakeLock.ts"],"version":"5.9.3"}
