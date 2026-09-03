@@ -31,6 +31,22 @@ interface Props {
   initialSession?: ActiveCrisisSession | null;
 }
 
+const OUTCOME_CONFIRM_MS = 900;
+const EXTEND_FLASH_MS = 1200;
+
+const OUTCOME_CONFIRM_COPY: Record<OutcomeType, { mark: string; label: string }> = {
+  depasit: { mark: '✓', label: 'Notat' },
+  amanat: { mark: '✓', label: 'Notat' },
+  mancat_totusi: { mark: '○', label: 'Notat' },
+  iesire_rapida: { mark: '✓', label: 'Notat' }
+};
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function buildInitial(session: ActiveCrisisSession | null | undefined) {
   return {
     step: (session?.step ?? 'RUNNING_3_MIN') as CrisisStep,
@@ -59,11 +75,25 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
   const [persistedElapsed, setPersistedElapsed] = useState(initial.persistedElapsed);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [pendingRetry, setPendingRetry] = useState<null | (() => Promise<void>)>(null);
+  const [extendFlash, setExtendFlash] = useState(false);
+  const [confirmingOutcome, setConfirmingOutcome] = useState<OutcomeType | null>(null);
   const restoreRef = useRef(initial.restore);
   const protocolStartedAtMsRef = useRef(initial.protocolStartedAtMs);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+  const extendFlashTimerRef = useRef<number | null>(null);
 
   const isRunning3Min = step === 'RUNNING_3_MIN';
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (extendFlashTimerRef.current != null) {
+        window.clearTimeout(extendFlashTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleTimerComplete = useCallback(() => {
     hapticTap('light');
@@ -150,11 +180,18 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
   }, [onClose]);
 
   const handleAddTwoMinutes = () => {
-    if (!extendedOnce) {
-      hapticTap('light');
-      extend(EXTENSION_SECONDS);
-      setExtendedOnce(true);
+    if (extendedOnce) return;
+    hapticTap('light');
+    extend(EXTENSION_SECONDS);
+    setExtendedOnce(true);
+    setExtendFlash(true);
+    if (extendFlashTimerRef.current != null) {
+      window.clearTimeout(extendFlashTimerRef.current);
     }
+    extendFlashTimerRef.current = window.setTimeout(() => {
+      if (mountedRef.current) setExtendFlash(false);
+      extendFlashTimerRef.current = null;
+    }, EXTEND_FLASH_MS);
   };
 
   const handleEarlyExit = () => {
@@ -192,20 +229,30 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
   };
 
   const finalizeDecompression = async (outcome: OutcomeType) => {
+    if (confirmingOutcome) return;
     hapticTap('medium');
     setFinalOutcome(outcome);
+    setConfirmingOutcome(outcome);
+    await wait(OUTCOME_CONFIRM_MS);
+    if (!mountedRef.current) return;
+
     const ok = await saveEpisode(outcome, selectedTrigger ?? 'doar_pofta');
+    if (!mountedRef.current) return;
+
     if (!ok) {
+      setConfirmingOutcome(null);
       setPendingRetry(() => async () => {
         const retried = await saveEpisode(outcome, selectedTrigger ?? 'doar_pofta');
         if (retried) {
           setSaveError(null);
           setPendingRetry(null);
+          setConfirmingOutcome(null);
           setStep('AFTERCARE');
         }
       });
       return;
     }
+    setConfirmingOutcome(null);
     setStep('AFTERCARE');
   };
 
@@ -230,6 +277,8 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
     hapticTap('light');
     setSelectedTrigger(trigger);
   };
+
+  const confirmCopy = confirmingOutcome ? OUTCOME_CONFIRM_COPY[confirmingOutcome] : null;
 
   return (
     <div
@@ -268,20 +317,40 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
         </div>
       )}
 
+      {confirmCopy && (
+        <div
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-950/92 pauza-outcome-confirm pointer-events-none"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div
+            className="w-16 h-16 rounded-full border border-indigo-400/50 bg-indigo-500/15 text-indigo-100 flex items-center justify-center text-3xl pauza-outcome-check"
+            aria-hidden="true"
+          >
+            {confirmCopy.mark}
+          </div>
+          <p className="mt-4 text-sm font-medium text-slate-100 tracking-wide">{confirmCopy.label}</p>
+        </div>
+      )}
+
       {step === 'RUNNING_3_MIN' && (
         <StepTransition key="running" className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
           <div className="flex justify-between items-center pt-2">
             <span className="text-xs uppercase tracking-widest text-slate-500 font-bold">Protocol Activ</span>
             <button
               onClick={handleEarlyExit}
-              className="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full active:bg-slate-800 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+              className="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full active:bg-slate-800 active:scale-[0.98] transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
             >
               Ies acum
             </button>
           </div>
 
           <div className="flex flex-col items-center justify-center my-auto text-center space-y-6 py-4">
-            <TimerDisplay secondsLeft={secondsLeft} totalDuration={totalDuration} />
+            <TimerDisplay
+              secondsLeft={secondsLeft}
+              totalDuration={totalDuration}
+              extendFlash={extendFlash}
+            />
 
             <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl max-w-sm">
               <p className="text-sm font-medium text-slate-200 leading-relaxed">
@@ -293,7 +362,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
               {!extendedOnce ? (
                 <button
                   onClick={handleAddTwoMinutes}
-                  className="text-xs text-slate-400 border border-slate-800 bg-slate-900/40 px-3 py-1.5 rounded-lg active:bg-slate-800 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+                  className="text-xs text-slate-400 border border-slate-800 bg-slate-900/40 px-3 py-1.5 rounded-lg active:bg-slate-800 active:scale-[0.98] transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
                 >
                   +2 minute (mai aștept puțin)
                 </button>
@@ -318,7 +387,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
               <button
                 key={trigger}
                 onClick={() => void finalizeEarlyExit(trigger)}
-                className="p-3 bg-slate-900 border border-slate-800 rounded-xl active:bg-slate-800 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+                className="p-3 bg-slate-900 border border-slate-800 rounded-xl active:bg-slate-800 active:scale-[0.98] transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
               >
                 {TRIGGER_LABELS[trigger]}
               </button>
@@ -345,10 +414,11 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
               <button
                 key={trigger}
                 onClick={() => handleSelectTrigger(trigger)}
-                className={`p-3 rounded-xl border text-left transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                disabled={Boolean(confirmingOutcome)}
+                className={`p-3 rounded-xl border text-left transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 disabled:opacity-60 ${
                   selectedTrigger === trigger
                     ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200 scale-[1.02]'
-                    : 'bg-slate-900 border-slate-800 text-slate-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-300 active:scale-[0.98]'
                 }`}
               >
                 {TRIGGER_LABELS[trigger]}
@@ -362,7 +432,8 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
               <button
                 key={value}
                 onClick={() => void finalizeDecompression(value)}
-                className={`${className} transition-all duration-150`}
+                disabled={Boolean(confirmingOutcome)}
+                className={`${className} transition-all duration-150 active:scale-[0.98] disabled:opacity-60`}
               >
                 {label}
               </button>
@@ -397,7 +468,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
 
           <button
             onClick={() => void closeAndClear()}
-            className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             Înapoi la ecranul principal
           </button>
