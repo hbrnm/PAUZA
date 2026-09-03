@@ -31,7 +31,7 @@ interface Props {
   initialSession?: ActiveCrisisSession | null;
 }
 
-const OUTCOME_CONFIRM_MS = 720;
+const OUTCOME_CONFIRM_MS = 900;
 const EXTEND_FLASH_MS = 1200;
 
 const OUTCOME_CONFIRM_COPY: Record<OutcomeType, { mark: string; label: string }> = {
@@ -319,17 +319,17 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose, initialSession = null 
 
       {confirmCopy && (
         <div
-          className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/88 pauza-outcome-confirm pointer-events-none"
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-950/92 pauza-outcome-confirm pointer-events-none"
           aria-live="polite"
           aria-atomic="true"
         >
           <div
-            className="w-14 h-14 rounded-full border border-indigo-400/40 bg-indigo-500/10 text-indigo-200 flex items-center justify-center text-2xl pauza-outcome-check"
+            className="w-16 h-16 rounded-full border border-indigo-400/50 bg-indigo-500/15 text-indigo-100 flex items-center justify-center text-3xl pauza-outcome-check"
             aria-hidden="true"
           >
             {confirmCopy.mark}
           </div>
-          <p className="mt-4 text-sm font-medium text-slate-200 tracking-wide">{confirmCopy.label}</p>
+          <p className="mt-4 text-sm font-medium text-slate-100 tracking-wide">{confirmCopy.label}</p>
         </div>
       )}
 
