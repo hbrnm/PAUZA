@@ -27,11 +27,11 @@ export const HomeView: React.FC<Props> = ({ onTriggerSOS, onOpenJournal }) => {
       <div className="flex flex-col items-center justify-center my-auto py-8 space-y-8 text-center">
         <div className="relative w-[17rem] h-[17rem] flex items-center justify-center">
           <span
-            className="absolute left-1/2 top-1/2 w-[16.5rem] h-[16.5rem] rounded-full border-2 border-indigo-400/50 pauza-pulse-ring-outer pointer-events-none"
+            className="absolute inset-0 m-auto w-[16.5rem] h-[16.5rem] rounded-full border-2 border-indigo-400/50 pauza-pulse-ring-outer pointer-events-none"
             aria-hidden="true"
           />
           <span
-            className="absolute left-1/2 top-1/2 w-[15rem] h-[15rem] rounded-full bg-indigo-500/40 blur-sm pauza-pulse-ring pointer-events-none"
+            className="absolute inset-0 m-auto w-[15rem] h-[15rem] rounded-full bg-indigo-500/40 blur-sm pauza-pulse-ring pointer-events-none"
             aria-hidden="true"
           />
           <button
