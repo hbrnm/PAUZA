@@ -18,7 +18,7 @@ export const HomeView: React.FC<Props> = ({ onTriggerSOS, onOpenJournal }) => {
         <span className="text-xs font-semibold tracking-[0.2em] uppercase text-slate-400">PAUZĂ V1</span>
         <button
           onClick={onOpenJournal}
-          className="text-xs font-medium text-slate-300 bg-slate-900 border border-slate-800 px-4 py-2 rounded-full active:bg-slate-800 transition-colors duration-150"
+          className="text-xs font-medium text-slate-300 bg-slate-900 border border-slate-800 px-4 py-2 rounded-full active:bg-slate-800 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
         >
           Jurnal & Tipare
         </button>
@@ -36,7 +36,8 @@ export const HomeView: React.FC<Props> = ({ onTriggerSOS, onOpenJournal }) => {
           />
           <button
             onClick={handleTriggerSOS}
-            className="relative z-10 w-64 h-64 rounded-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-500 pauza-pulse-btn flex flex-col items-center justify-center transition-transform duration-150 ease-out active:scale-95 p-4 touch-manipulation cursor-pointer border-4 border-indigo-400/50 shrink-0"
+            aria-label="Am poftă acum — pornește pauza de 3 minute"
+            className="relative z-10 w-64 h-64 rounded-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-500 pauza-pulse-btn flex flex-col items-center justify-center transition-transform duration-150 ease-out active:scale-95 p-4 touch-manipulation cursor-pointer border-4 border-indigo-400/50 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-300"
           >
             <span className="text-2xl font-black tracking-tight text-white uppercase">AM POFTĂ ACUM</span>
             <span className="text-xs text-indigo-200 mt-2 font-medium">3 minute pauză</span>

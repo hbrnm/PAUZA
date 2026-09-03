@@ -1,32 +1,49 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+export interface TimerSnapshot {
+  startedAtMs: number;
+  endsAtMs: number;
+  elapsedSeconds: number;
+  secondsLeft: number;
+  totalDuration: number;
+}
+
 interface Options {
   isActive: boolean;
   initialDurationSeconds: number;
   onComplete: () => void;
+  restore?: { startedAtMs: number; endsAtMs: number } | null;
+  onSnapshot?: (snapshot: TimerSnapshot) => void;
 }
 
 export function useWallClockTimer({
   isActive,
   initialDurationSeconds,
-  onComplete
+  onComplete,
+  restore = null,
+  onSnapshot
 }: Options) {
   const startedAtRef = useRef(0);
   const endsAtRef = useRef(0);
   const completedRef = useRef(false);
+  const restoreAppliedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
+  const onSnapshotRef = useRef(onSnapshot);
+  const restoreRef = useRef(restore);
 
   const [secondsLeft, setSecondsLeft] = useState(initialDurationSeconds);
   const [totalDuration, setTotalDuration] = useState(initialDurationSeconds);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   onCompleteRef.current = onComplete;
+  onSnapshotRef.current = onSnapshot;
+  restoreRef.current = restore;
 
   const syncNow = useCallback(() => {
     if (!isActive || startedAtRef.current === 0) return;
 
     const now = Date.now();
-    const elapsed = Math.floor((now - startedAtRef.current) / 1000);
+    const elapsed = Math.max(0, Math.floor((now - startedAtRef.current) / 1000));
     const remaining = Math.max(0, Math.ceil((endsAtRef.current - now) / 1000));
     const duration = Math.max(
       1,
@@ -37,6 +54,14 @@ export function useWallClockTimer({
     setSecondsLeft(remaining);
     setTotalDuration(duration);
 
+    onSnapshotRef.current?.({
+      startedAtMs: startedAtRef.current,
+      endsAtMs: endsAtRef.current,
+      elapsedSeconds: elapsed,
+      secondsLeft: remaining,
+      totalDuration: duration
+    });
+
     if (remaining <= 0 && !completedRef.current) {
       completedRef.current = true;
       onCompleteRef.current();
@@ -46,15 +71,31 @@ export function useWallClockTimer({
   useEffect(() => {
     if (!isActive) {
       startedAtRef.current = 0;
+      endsAtRef.current = 0;
       completedRef.current = false;
+      restoreAppliedRef.current = false;
       return;
     }
 
     const now = Date.now();
-    startedAtRef.current = now;
-    endsAtRef.current = now + initialDurationSeconds * 1000;
-    completedRef.current = false;
+    const restoreValue = restoreRef.current;
 
+    if (
+      !restoreAppliedRef.current &&
+      restoreValue &&
+      restoreValue.startedAtMs > 0 &&
+      restoreValue.endsAtMs > restoreValue.startedAtMs
+    ) {
+      startedAtRef.current = restoreValue.startedAtMs;
+      endsAtRef.current = restoreValue.endsAtMs;
+      restoreAppliedRef.current = true;
+    } else if (startedAtRef.current === 0) {
+      startedAtRef.current = now;
+      endsAtRef.current = now + initialDurationSeconds * 1000;
+      restoreAppliedRef.current = true;
+    }
+
+    completedRef.current = false;
     syncNow();
 
     const interval = setInterval(syncNow, 1000);
@@ -86,5 +127,13 @@ export function useWallClockTimer({
     [isActive, syncNow]
   );
 
-  return { secondsLeft, totalDuration, elapsedSeconds, extend, syncNow };
+  return {
+    secondsLeft,
+    totalDuration,
+    elapsedSeconds,
+    startedAtMs: startedAtRef.current,
+    endsAtMs: endsAtRef.current,
+    extend,
+    syncNow
+  };
 }

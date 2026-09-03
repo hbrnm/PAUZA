@@ -43,6 +43,15 @@ html, body {
   background-color: #020617;
 }
 
+:focus-visible {
+  outline: 2px solid rgb(129 140 248);
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .safe-top {
   padding-top: env(safe-area-inset-top, 1rem);
 }
