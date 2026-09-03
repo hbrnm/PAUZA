@@ -60,14 +60,16 @@ button:focus:not(:focus-visible) {
   padding-bottom: env(safe-area-inset-bottom, 1.5rem);
 }
 
-/* Puls buton Home — mereu activ (fără motion-safe), calibrat iOS WebKit */
+/* Puls buton Home — mereu activ (fără motion-safe), calibrat iOS WebKit.
+   Centrarea e în layout (inset + margin auto), nu în keyframes —
+   altfel inelele apar descentrate până pornește animația / delay-ul. */
 @keyframes pauza-ring-pulse {
   0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
     opacity: 0.55;
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.14);
+    transform: scale(1.14);
     opacity: 0.95;
   }
 }
@@ -86,16 +88,24 @@ button:focus:not(:focus-visible) {
 }
 
 .pauza-pulse-ring {
+  transform-origin: center;
+  transform: scale(1);
+  opacity: 0.55;
   animation: pauza-ring-pulse 3s ease-in-out infinite;
   -webkit-animation: pauza-ring-pulse 3s ease-in-out infinite;
   will-change: transform, opacity;
 }
 
 .pauza-pulse-ring-outer {
+  transform-origin: center;
+  transform: scale(1);
+  opacity: 0.55;
   animation: pauza-ring-pulse 3s ease-in-out infinite;
   -webkit-animation: pauza-ring-pulse 3s ease-in-out infinite;
   animation-delay: 1.5s;
   -webkit-animation-delay: 1.5s;
+  animation-fill-mode: backwards;
+  -webkit-animation-fill-mode: backwards;
   will-change: transform, opacity;
 }
 
@@ -109,7 +119,7 @@ button:focus:not(:focus-visible) {
   .pauza-pulse-ring-outer {
     animation: none;
     opacity: 0.7;
-    transform: translate(-50%, -50%) scale(1.06);
+    transform: scale(1.06);
   }
 
   .pauza-pulse-btn {
