@@ -114,6 +114,78 @@ button:focus:not(:focus-visible) {
   -webkit-animation: pauza-btn-glow 3s ease-in-out infinite;
 }
 
+/* Timer: respirație calmă pe inel (4s), separat de pulsul Home */
+@keyframes pauza-timer-breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.pauza-timer-breathe {
+  transform-origin: center;
+  transform: scale(1);
+  animation: pauza-timer-breathe 4s ease-in-out infinite;
+  -webkit-animation: pauza-timer-breathe 4s ease-in-out infinite;
+}
+
+.pauza-timer-ring {
+  transition: stroke-dashoffset 1s linear;
+}
+
+.pauza-timer-ring-extend {
+  transition: stroke-dashoffset 1.15s ease-out;
+}
+
+@keyframes pauza-extend-flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  18%, 72% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -5px);
+  }
+}
+
+.pauza-extend-flash {
+  animation: pauza-extend-flash 1.2s ease-out both;
+  -webkit-animation: pauza-extend-flash 1.2s ease-out both;
+}
+
+/* Confirmare outcome înainte de aftercare */
+@keyframes pauza-outcome-veil {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pauza-outcome-check {
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.pauza-outcome-confirm {
+  animation: pauza-outcome-veil 0.28s ease-out both;
+  -webkit-animation: pauza-outcome-veil 0.28s ease-out both;
+}
+
+.pauza-outcome-check {
+  animation: pauza-outcome-check 0.38s ease-out both;
+  -webkit-animation: pauza-outcome-check 0.38s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pauza-pulse-ring,
   .pauza-pulse-ring-outer {
@@ -125,6 +197,24 @@ button:focus:not(:focus-visible) {
   .pauza-pulse-btn {
     animation: none;
     box-shadow: 0 0 48px rgba(79, 70, 229, 0.5);
+  }
+
+  .pauza-timer-breathe {
+    animation: none;
+    transform: scale(1);
+  }
+
+  .pauza-extend-flash,
+  .pauza-outcome-confirm,
+  .pauza-outcome-check {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .pauza-timer-ring,
+  .pauza-timer-ring-extend {
+    transition: none;
   }
 
   .animate-step-enter,
