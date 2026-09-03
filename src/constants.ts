@@ -31,8 +31,12 @@ export function formatTriggerLabel(trigger?: StoredTriggerType): string {
   return LEGACY_TRIGGER_LABELS[trigger] ?? trigger.replace('_', ' ');
 }
 
-export function isSuccessfulPause(outcome: StoredOutcomeType): boolean {
-  return outcome === 'depasit' || outcome === 'amanat' || outcome === 'a_trecut' || outcome === 'am_amanat';
+export function isDeferred(outcome: StoredOutcomeType): boolean {
+  return outcome === 'amanat' || outcome === 'am_amanat';
+}
+
+export function isOvercome(outcome: StoredOutcomeType): boolean {
+  return outcome === 'depasit' || outcome === 'a_trecut';
 }
 
 export function isConsumed(outcome: StoredOutcomeType): boolean {
@@ -63,16 +67,16 @@ export const DECOMPRESSION_OUTCOMES: { value: OutcomeType; label: string; classN
   {
     value: 'depasit',
     label: 'Am depășit pofta',
-    className: 'w-full py-3.5 bg-indigo-600 font-medium rounded-xl text-sm active:bg-indigo-500'
+    className: 'w-full py-3.5 bg-indigo-600 font-medium rounded-xl text-sm active:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400'
   },
   {
     value: 'amanat',
     label: 'Mai amân decizia',
-    className: 'w-full py-3.5 bg-slate-800 font-medium rounded-xl text-sm active:bg-slate-700'
+    className: 'w-full py-3.5 bg-slate-800 font-medium rounded-xl text-sm active:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400'
   },
   {
     value: 'mancat_totusi',
     label: 'Am mâncat totuși',
-    className: 'w-full py-3.5 bg-slate-900 border border-slate-800 font-medium text-slate-400 rounded-xl text-sm active:bg-slate-800'
+    className: 'w-full py-3.5 bg-slate-900 border border-slate-800 font-medium text-slate-400 rounded-xl text-sm active:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400'
   }
 ];
