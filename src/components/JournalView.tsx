@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { db, exportDataSafe } from '../db';
+import { exportDataSafe, loadEpisodesSafe } from '../db';
 import {
   formatOutcomeBadge,
   formatTriggerLabel,
@@ -17,15 +17,45 @@ interface Props {
 export const JournalView: React.FC<Props> = ({ onClose }) => {
   const [episodes, setEpisodes] = useState<CravingEpisode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     async function loadData() {
-      const data = await db.episodes.orderBy('timestamp').reverse().toArray();
-      setEpisodes(data);
+      const result = await loadEpisodesSafe();
+      if (result.ok) {
+        setEpisodes(result.episodes);
+        setLoadError(null);
+      } else {
+        setLoadError(result.message);
+      }
       setLoading(false);
     }
     loadData();
   }, []);
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportMessage(null);
+    const result = await exportDataSafe();
+    setExporting(false);
+
+    if (result.ok) {
+      setExportMessage(
+        result.method === 'share'
+          ? 'Export deschis în meniul de partajare.'
+          : 'Fișierul JSON a fost descărcat.'
+      );
+      return;
+    }
+
+    if (result.reason === 'aborted') {
+      return;
+    }
+
+    setExportMessage(result.message ?? 'Exportul a eșuat.');
+  };
 
   const total = episodes.length;
   const successful = episodes.filter((e) => isSuccessfulPause(e.outcome)).length;
@@ -60,6 +90,17 @@ export const JournalView: React.FC<Props> = ({ onClose }) => {
 
       {loading ? (
         <JournalSkeleton />
+      ) : loadError ? (
+        <div className="my-auto text-center space-y-3 py-12 animate-step-enter max-w-sm mx-auto">
+          <p className="text-sm text-amber-200">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="text-xs text-slate-300 underline"
+          >
+            Reîncearcă
+          </button>
+        </div>
       ) : total === 0 ? (
         <div className="my-auto text-center space-y-2 py-12 animate-step-enter">
           <p className="text-sm text-slate-300">Încă nu ai înregistrat niciun episod.</p>
@@ -138,11 +179,15 @@ export const JournalView: React.FC<Props> = ({ onClose }) => {
 
           <div className="pt-4 pb-8">
             <button
-              onClick={exportDataSafe}
-              className="w-full py-3 bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium rounded-xl active:bg-slate-800 flex items-center justify-center space-x-2 cursor-pointer transition-colors duration-150"
+              onClick={handleExport}
+              disabled={exporting}
+              className="w-full py-3 bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium rounded-xl active:bg-slate-800 flex items-center justify-center space-x-2 cursor-pointer transition-colors duration-150 disabled:opacity-60"
             >
-              <span>Exportă datele (JSON / Salvează în Fișiere)</span>
+              <span>{exporting ? 'Se exportă...' : 'Exportă datele (JSON / Salvează în Fișiere)'}</span>
             </button>
+            {exportMessage && (
+              <p className="text-[10px] text-indigo-300 text-center mt-2">{exportMessage}</p>
+            )}
             <p className="text-[10px] text-slate-500 text-center mt-2">
               Datele tale rămân 100% private pe acest dispozitiv.
             </p>

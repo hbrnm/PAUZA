@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { HomeView } from './components/HomeView';
 import { CrisisOverlay } from './components/CrisisOverlay';
 import { JournalView } from './components/JournalView';
+import { hasCrisisSession } from './session/crisisSession';
 
 export function App() {
-  const [isCrisisOpen, setIsCrisisOpen] = useState(false);
+  const [isCrisisOpen, setIsCrisisOpen] = useState(() => hasCrisisSession());
   const [isJournalOpen, setIsJournalOpen] = useState(false);
 
   return (

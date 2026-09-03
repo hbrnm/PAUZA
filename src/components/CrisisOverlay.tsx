@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { usePreventSwipeBack } from '../hooks/usePreventSwipeBack';
 import { useWallClockTimer } from '../hooks/useWallClockTimer';
@@ -10,6 +10,13 @@ import {
   TRIGGERS
 } from '../constants';
 import { CravingEpisode, OutcomeType, TriggerType } from '../types';
+import {
+  clearCrisisSession,
+  CrisisSession,
+  CrisisStep,
+  loadCrisisSession,
+  saveCrisisSession
+} from '../session/crisisSession';
 import { TimerDisplay } from './TimerDisplay';
 import { StepTransition } from './StepTransition';
 
@@ -17,16 +24,34 @@ interface Props {
   onClose: () => void;
 }
 
-type Step = 'RUNNING_3_MIN' | 'EARLY_EXIT_TRIGGER' | 'DECOMPRESSION' | 'AFTERCARE';
-
 const INITIAL_DURATION = 180;
 const EXTENSION_SECONDS = 120;
 
+function buildInitialState(session: CrisisSession | null) {
+  return {
+    step: (session?.step ?? 'RUNNING_3_MIN') as CrisisStep,
+    extendedOnce: session?.extendedOnce ?? false,
+    selectedTrigger: session?.selectedTrigger,
+    finalOutcome: (session?.finalOutcome ?? 'iesire_rapida') as OutcomeType,
+    persistedElapsed: session?.elapsedSeconds ?? 0,
+    restore:
+      session?.step === 'RUNNING_3_MIN' && session.startedAt > 0 && session.endsAt > session.startedAt
+        ? { startedAt: session.startedAt, endsAt: session.endsAt }
+        : null
+  };
+}
+
 export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
-  const [step, setStep] = useState<Step>('RUNNING_3_MIN');
-  const [extendedOnce, setExtendedOnce] = useState(false);
-  const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | undefined>();
-  const [finalOutcome, setFinalOutcome] = useState<OutcomeType>('iesire_rapida');
+  const initial = useMemo(() => buildInitialState(loadCrisisSession()), []);
+  const [step, setStep] = useState<CrisisStep>(initial.step);
+  const [extendedOnce, setExtendedOnce] = useState(initial.extendedOnce);
+  const [selectedTrigger, setSelectedTrigger] = useState<TriggerType | undefined>(
+    initial.selectedTrigger
+  );
+  const [finalOutcome, setFinalOutcome] = useState<OutcomeType>(initial.finalOutcome);
+  const [persistedElapsed, setPersistedElapsed] = useState(initial.persistedElapsed);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const restoreRef = useRef(initial.restore);
 
   const isRunning3Min = step === 'RUNNING_3_MIN';
 
@@ -35,14 +60,62 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
     setStep('DECOMPRESSION');
   }, []);
 
+  const handleSnapshot = useCallback(
+    (snapshot: {
+      startedAt: number;
+      endsAt: number;
+      elapsedSeconds: number;
+      secondsLeft: number;
+      totalDuration: number;
+    }) => {
+      setPersistedElapsed(snapshot.elapsedSeconds);
+      saveCrisisSession({
+        version: 1,
+        step: 'RUNNING_3_MIN',
+        startedAt: snapshot.startedAt,
+        endsAt: snapshot.endsAt,
+        extendedOnce,
+        elapsedSeconds: snapshot.elapsedSeconds,
+        selectedTrigger,
+        finalOutcome
+      });
+    },
+    [extendedOnce, selectedTrigger, finalOutcome]
+  );
+
   const { secondsLeft, totalDuration, elapsedSeconds, extend } = useWallClockTimer({
     isActive: isRunning3Min,
     initialDurationSeconds: INITIAL_DURATION,
-    onComplete: handleTimerComplete
+    onComplete: handleTimerComplete,
+    restore: restoreRef.current,
+    onSnapshot: handleSnapshot
   });
+
+  const durationForSave = isRunning3Min ? elapsedSeconds : persistedElapsed;
 
   useWakeLock(isRunning3Min);
   usePreventSwipeBack(isRunning3Min);
+
+  useEffect(() => {
+    if (step === 'RUNNING_3_MIN') return;
+
+    const existing = loadCrisisSession();
+    saveCrisisSession({
+      version: 1,
+      step,
+      startedAt: existing?.startedAt ?? Date.now() - durationForSave * 1000,
+      endsAt: existing?.endsAt ?? Date.now(),
+      extendedOnce,
+      elapsedSeconds: durationForSave,
+      selectedTrigger,
+      finalOutcome
+    });
+  }, [step, extendedOnce, selectedTrigger, finalOutcome, durationForSave]);
+
+  const closeAndClear = useCallback(() => {
+    clearCrisisSession();
+    onClose();
+  }, [onClose]);
 
   const handleAddTwoMinutes = () => {
     if (!extendedOnce) {
@@ -53,36 +126,46 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
   };
 
   const handleEarlyExit = () => {
-    if (elapsedSeconds < 5) {
-      onClose();
+    const spent = isRunning3Min ? elapsedSeconds : persistedElapsed;
+    if (spent < 5) {
+      closeAndClear();
       return;
     }
+    setPersistedElapsed(spent);
     hapticTap('light');
     setFinalOutcome('iesire_rapida');
     setStep('EARLY_EXIT_TRIGGER');
   };
 
   const saveEpisode = async (outcome: OutcomeType, trigger?: TriggerType) => {
+    setSaveError(null);
     const episode: CravingEpisode = {
       timestamp: new Date().toISOString(),
-      durationSeconds: elapsedSeconds,
+      durationSeconds: durationForSave,
       trigger,
       outcome
     };
-    return saveEpisodeValidated(episode);
+    const result = await saveEpisodeValidated(episode);
+    if (!result.saved && result.reason === 'storage_error') {
+      setSaveError(result.message ?? 'Salvarea a eșuat.');
+      return false;
+    }
+    return result.saved || result.reason === 'skipped';
   };
 
   const finalizeDecompression = async (outcome: OutcomeType) => {
     hapticTap('medium');
     setFinalOutcome(outcome);
-    await saveEpisode(outcome, selectedTrigger ?? 'doar_pofta');
+    const ok = await saveEpisode(outcome, selectedTrigger ?? 'doar_pofta');
+    if (!ok) return;
     setStep('AFTERCARE');
   };
 
   const finalizeEarlyExit = async (trigger?: TriggerType) => {
     hapticTap('light');
-    await saveEpisode('iesire_rapida', trigger);
-    onClose();
+    const ok = await saveEpisode('iesire_rapida', trigger);
+    if (!ok) return;
+    closeAndClear();
   };
 
   const handleSelectTrigger = (trigger: TriggerType) => {
@@ -92,6 +175,19 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 pt-[env(safe-area-inset-top,1.5rem)] pb-[env(safe-area-inset-bottom,1.5rem)] select-none overflow-y-auto animate-overlay-enter">
+      {saveError && (
+        <div className="absolute left-4 right-4 top-[max(1rem,env(safe-area-inset-top))] z-50 rounded-xl border border-amber-500/40 bg-amber-950/90 px-4 py-3 text-xs text-amber-100">
+          {saveError}
+          <button
+            type="button"
+            onClick={() => setSaveError(null)}
+            className="ml-3 underline text-amber-200"
+          >
+            Închide
+          </button>
+        </div>
+      )}
+
       {step === 'RUNNING_3_MIN' && (
         <StepTransition key="running" className="flex flex-col justify-between min-h-full overscroll-x-none touch-pan-y">
           <div className="flex justify-between items-center pt-2">
@@ -220,7 +316,7 @@ export const CrisisOverlay: React.FC<Props> = ({ onClose }) => {
           )}
 
           <button
-            onClick={onClose}
+            onClick={closeAndClear}
             className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition-colors duration-150"
           >
             Înapoi la ecranul principal
